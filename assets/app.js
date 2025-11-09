@@ -49,7 +49,6 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
     var blob = dataURLtoBlob(photo.dataUrl);
     var filename = photo.filename || ('page_'+padNumber(photos.indexOf(photo)+1,3)+'.jpg');
     form.append('file', blob, filename);
-    // send minimal meta for that page (optional)
     form.append('meta', JSON.stringify({
       title: meta.title || '',
       description: meta.description || '',
@@ -93,7 +92,6 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
     apiPostForm(BASE_API + '/attach/' + sessionUUID, form)
       .then(function(r){ if(!r.ok) throw 0; return r.json(); })
       .then(function(resp){
-        // just push to attachments list
         var saved = (resp && resp.attachments) ? resp.attachments : [];
         if (saved && saved.length){
           saved.forEach(function(nm){
@@ -139,7 +137,7 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
   var sessionUUID = null;
   var draggedIndex = null;
   var ghostElement = null;
-  var debugMode = false; // debug UI disabled
+  var debugMode = false;
   var tesseractWorker = null;
   var ocrQueue = [];
   var isProcessingOCR = false;
@@ -148,6 +146,7 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
   var attachments = [];
   var isCustomLabelMode = false;
   var meta = { title: "", description: "" };
+  var selectedLabelId = null;  // NEW: track selected label in form
 
   /* UTILS */
   function showToast(message){
@@ -170,23 +169,23 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
   }
   function padNumber(num, size){ var s = '000'+num; return s.substr(s.length - size); }
 
-  /* Categories config (kept) */
+  /* Categories config */
   var CATEGORIES_CONFIG = {
-    "facture":{"label":{"fr":"Facture","en":"Invoice","de":"Rechnung"},"color":"#34C759","keywords":["facture","invoice","rechnung","total ttc","tva","vat","mwst","montant","amount","betrag"]},
-    "devis":{"label":{"fr":"Devis","en":"Quote","de":"Angebot"},"color":"#5AC8FA","keywords":["devis","quote","angebot","estimation","offre"]},
-    "bon-commande":{"label":{"fr":"Bon de commande","en":"Purchase order","de":"Bestellung"},"color":"#007AFF","keywords":["bon de commande","purchase order","bestellung","order"]},
-    "contrat":{"label":{"fr":"Contrat","en":"Contract","de":"Vertrag"},"color":"#FF9500","keywords":["contrat","contract","vertrag","accord","agreement","vereinbarung","convention","conditions generales","cgv","terms and conditions","agb"]},
-    "fiche-paie":{"label":{"fr":"Fiche de paie","en":"Payslip","de":"Gehaltsabrechnung"},"color":"#5856D6","keywords":["salaire","salary","gehalt","bulletin","paie","payslip","lohnabrechnung","remuneration","vergütung"]},
-    "contrat-travail":{"label":{"fr":"Contrat de travail","en":"Employment contract","de":"Arbeitsvertrag"},"color":"#AF52DE","keywords":["contrat de travail","employment contract","arbeitsvertrag","cdi","cdd","avenant","amendment","nachtrag"]},
-    "attestation":{"label":{"fr":"Attestation","en":"Certificate","de":"Bescheinigung"},"color":"#FF2D55","keywords":["certificat","certificate","bescheinigung","attestation","zeugnis"]},
-    "juridique":{"label":{"fr":"Document juridique","en":"Legal document","de":"Rechtsdokument"},"color":"#AF52DE","keywords":["mandat","mandate","vollmacht","procuration","power of attorney","proces-verbal","pv","protokoll","assemblee","assembly","versammlung","decision","beschluss"]},
-    "technique":{"label":{"fr":"Fiche technique","en":"Datasheet","de":"Datenblatt"},"color":"#007AFF","keywords":["fiche technique","datasheet","datenblatt","specifications","spezifikationen","schema","schematic","plan","cad"]},
-    "procedure":{"label":{"fr":"Procédure","en":"Procedure","de":"Prozedur"},"color":"#FF3B30","keywords":["procedure","prozedur","mode d","anleitung","manuel"]},
-    "rapport":{"label":{"fr":"Rapport","en":"Report","de":"Bericht"},"color":"#FF9500","keywords":["rapport","report","bericht","intervention","einsatz"]},
-    "formulaire":{"label":{"fr":"Formulaire","en":"Form","de":"Formular"},"color":"#FFCC00","keywords":["formulaire","formular","form"]},
-    "identite":{"label":{"fr":"Pièce d'identité","en":"ID document","de":"Ausweisdokument"},"color":"#AF52DE","keywords":["carte d","identite","identity","ausweis","passeport","passport","reisepass","permis","license","führerschein"]},
-    "recu":{"label":{"fr":"Reçu","en":"Receipt","de":"Beleg"},"color":"#FFCC00","keywords":["recu","receipt","beleg","ticket","quittung","caisse","cash register","kasse"]},
-    "autre":{"label":{"fr":"Autre","en":"Other","de":"Andere"},"color":"#8E8E93","keywords":[]}
+    "facture":{"label":{"fr":"Facture","en":"Invoice","de":"Rechnung"},"color":"#34C759","icon":"💰","keywords":["facture","invoice","rechnung","total ttc","tva","vat","mwst","montant","amount","betrag"]},
+    "devis":{"label":{"fr":"Devis","en":"Quote","de":"Angebot"},"color":"#5AC8FA","icon":"📋","keywords":["devis","quote","angebot","estimation","offre"]},
+    "bon-commande":{"label":{"fr":"Bon de commande","en":"Purchase order","de":"Bestellung"},"color":"#007AFF","icon":"🛒","keywords":["bon de commande","purchase order","bestellung","order"]},
+    "contrat":{"label":{"fr":"Contrat","en":"Contract","de":"Vertrag"},"color":"#FF9500","icon":"📝","keywords":["contrat","contract","vertrag","accord","agreement","vereinbarung","convention","conditions generales","cgv","terms and conditions","agb"]},
+    "fiche-paie":{"label":{"fr":"Fiche de paie","en":"Payslip","de":"Gehaltsabrechnung"},"color":"#5856D6","icon":"💵","keywords":["salaire","salary","gehalt","bulletin","paie","payslip","lohnabrechnung","remuneration","vergütung"]},
+    "contrat-travail":{"label":{"fr":"Contrat de travail","en":"Employment contract","de":"Arbeitsvertrag"},"color":"#AF52DE","icon":"🤝","keywords":["contrat de travail","employment contract","arbeitsvertrag","cdi","cdd","avenant","amendment","nachtrag"]},
+    "attestation":{"label":{"fr":"Attestation","en":"Certificate","de":"Bescheinigung"},"color":"#FF2D55","icon":"🎓","keywords":["certificat","certificate","bescheinigung","attestation","zeugnis"]},
+    "juridique":{"label":{"fr":"Document juridique","en":"Legal document","de":"Rechtsdokument"},"color":"#AF52DE","icon":"⚖️","keywords":["mandat","mandate","vollmacht","procuration","power of attorney","proces-verbal","pv","protokoll","assemblee","assembly","versammlung","decision","beschluss"]},
+    "technique":{"label":{"fr":"Fiche technique","en":"Datasheet","de":"Datenblatt"},"color":"#007AFF","icon":"🔧","keywords":["fiche technique","datasheet","datenblatt","specifications","spezifikationen","schema","schematic","plan","cad"]},
+    "procedure":{"label":{"fr":"Procédure","en":"Procedure","de":"Prozedur"},"color":"#FF3B30","icon":"📖","keywords":["procedure","prozedur","mode d","anleitung","manuel"]},
+    "rapport":{"label":{"fr":"Rapport","en":"Report","de":"Bericht"},"color":"#FF9500","icon":"📊","keywords":["rapport","report","bericht","intervention","einsatz"]},
+    "formulaire":{"label":{"fr":"Formulaire","en":"Form","de":"Formular"},"color":"#FFCC00","icon":"📄","keywords":["formulaire","formular","form"]},
+    "identite":{"label":{"fr":"Pièce d'identité","en":"ID document","de":"Ausweisdokument"},"color":"#AF52DE","icon":"🪪","keywords":["carte d","identite","identity","ausweis","passeport","passport","reisepass","permis","license","führerschein"]},
+    "recu":{"label":{"fr":"Reçu","en":"Receipt","de":"Beleg"},"color":"#FFCC00","icon":"🧾","keywords":["recu","receipt","beleg","ticket","quittung","caisse","cash register","kasse"]},
+    "autre":{"label":{"fr":"Autre","en":"Other","de":"Andere"},"color":"#8E8E93","icon":"📎","keywords":[]}
   };
   var currentLanguage = 'fr';
 
@@ -203,6 +202,7 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
   }
   function getCategoryLabel(c){ var conf=CATEGORIES_CONFIG[c]; if(!conf) return 'Autre'; return conf.label[currentLanguage]||conf.label['fr']; }
   function getCategoryColor(c){ var conf=CATEGORIES_CONFIG[c]; if(!conf) return '#8E8E93'; return conf.color; }
+  function getCategoryIcon(c){ var conf=CATEGORIES_CONFIG[c]; if(!conf) return '📎'; return conf.icon||'📎'; }
 
   /* LABELS */
   function renderLabels(){
@@ -218,51 +218,173 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
       chip.appendChild(dot); chip.appendChild(text); chip.appendChild(rm); list.appendChild(chip);
     });
   }
+
+  /* NEW IMPROVED LABEL FORM - Grid layout with visual cards */
   function showLabelForm(){
     var container=document.getElementById('label-form-container');
-    if(container.innerHTML!==''){ container.innerHTML=''; isCustomLabelMode=false; return; }
+    if(container.innerHTML!==''){ container.innerHTML=''; isCustomLabelMode=false; selectedLabelId=null; return; }
+    
     var form=document.createElement('div'); form.className='label-form';
-    var row=document.createElement('div'); row.className='label-form-row';
-    var select=document.createElement('select'); select.className='label-form-select'; select.id='label-category-select';
-    var custom=document.createElement('option'); custom.value='__custom__'; custom.textContent='✏️ Personnalisé...'; select.appendChild(custom);
-    var separator=document.createElement('option'); separator.disabled=true; separator.textContent='─────────────'; select.appendChild(separator);
-    for (var id in CATEGORIES_CONFIG){ var o=document.createElement('option'); o.value=id; o.textContent=getCategoryLabel(id); select.appendChild(o); }
-    var input=document.createElement('input'); input.type='text'; input.className='label-form-input'; input.id='label-custom-input'; input.placeholder='Saisir un label personnalisé...'; input.onkeydown=function(e){ if(e.key==='Enter') saveLabel(); };
-    select.onchange=function(){ if(this.value==='__custom__'){ isCustomLabelMode=true; select.style.display='none'; input.className='label-form-input visible'; input.focus(); }};
-    row.appendChild(select); row.appendChild(input);
+    
+    // Title
+    var title=document.createElement('div'); title.className='label-form-title';
+    title.innerHTML='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg> Choisissez un type de document';
+    form.appendChild(title);
+    
+    // Grid of label options
+    var grid=document.createElement('div'); grid.className='label-grid';
+    
+    // Add category options
+    for (var id in CATEGORIES_CONFIG){
+      if(id==='autre') continue;
+      (function(catId){
+        var opt=document.createElement('div'); 
+        opt.className='label-option';
+        opt.setAttribute('data-category', catId);
+        
+        var icon=document.createElement('span'); icon.className='label-option-icon'; 
+        icon.textContent=getCategoryIcon(catId);
+        
+        var dot=document.createElement('div'); dot.className='label-option-dot'; 
+        dot.style.background=getCategoryColor(catId);
+        
+        var text=document.createElement('span'); text.className='label-option-text'; 
+        text.textContent=getCategoryLabel(catId);
+        
+        opt.appendChild(icon);
+        opt.appendChild(dot);
+        opt.appendChild(text);
+        
+        opt.onclick=function(){ 
+          selectLabelOption(catId, false); 
+        };
+        grid.appendChild(opt);
+      })(id);
+    }
+    
+    // Custom option
+    var customOpt=document.createElement('div'); 
+    customOpt.className='label-option label-custom-option';
+    customOpt.setAttribute('data-category', '__custom__');
+    var customIcon=document.createElement('span'); customIcon.className='label-option-icon'; customIcon.textContent='✏️';
+    var customText=document.createElement('span'); customText.className='label-option-text'; customText.textContent='Label personnalisé';
+    customOpt.appendChild(customIcon); customOpt.appendChild(customText);
+    customOpt.onclick=function(){ selectLabelOption('__custom__', true); };
+    grid.appendChild(customOpt);
+    
+    form.appendChild(grid);
+    
+    // Custom input (hidden by default)
+    var input=document.createElement('input'); 
+    input.type='text'; 
+    input.className='label-custom-input'; 
+    input.id='label-custom-input'; 
+    input.placeholder='Saisir un label personnalisé...'; 
+    input.style.display='none';
+    input.onkeydown=function(e){ if(e.key==='Enter') saveLabel(); };
+    form.appendChild(input);
+    
+    // Actions
     var actions=document.createElement('div'); actions.className='label-form-actions';
-    var save=document.createElement('button'); save.className='label-form-btn save'; save.textContent='Ajouter'; save.onclick=saveLabel;
-    var cancel=document.createElement('button'); cancel.className='label-form-btn cancel'; cancel.textContent='Annuler'; cancel.onclick=function(){ container.innerHTML=''; isCustomLabelMode=false; };
+    var save=document.createElement('button'); save.className='label-form-btn save'; 
+    save.innerHTML='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Ajouter';
+    save.onclick=saveLabel;
+    var cancel=document.createElement('button'); cancel.className='label-form-btn cancel'; 
+    cancel.innerHTML='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg> Annuler';
+    cancel.onclick=function(){ container.innerHTML=''; isCustomLabelMode=false; selectedLabelId=null; };
     actions.appendChild(save); actions.appendChild(cancel);
-    form.appendChild(row); form.appendChild(actions);
+    form.appendChild(actions);
+    
     container.innerHTML=''; container.appendChild(form);
-    setTimeout(function(){ select.focus(); select.click(); },50);
   }
+  
+  function selectLabelOption(catId, isCustom){
+    // Remove previous selection
+    var opts=document.querySelectorAll('.label-option');
+    for(var i=0;i<opts.length;i++){ opts[i].classList.remove('selected'); }
+    
+    // Select this one
+    var opt=document.querySelector('.label-option[data-category="'+catId+'"]');
+    if(opt){ opt.classList.add('selected'); }
+    
+    selectedLabelId = catId;
+    isCustomLabelMode = isCustom;
+    
+    var input=document.getElementById('label-custom-input');
+    if(input){
+      if(isCustom){ 
+        input.style.display='block'; 
+        input.focus(); 
+      } else { 
+        input.style.display='none'; 
+      }
+    }
+  }
+  
   function saveLabel(){
     var labelText='', labelColor='';
+    
     if(isCustomLabelMode){
-      var input=document.getElementById('label-custom-input'); labelText=input.value.trim();
+      var input=document.getElementById('label-custom-input'); 
+      labelText=input.value.trim();
       if(!labelText){ showToast('Veuillez saisir un label'); return; }
       labelColor='#8E8E93';
-    }else{
-      var select=document.getElementById('label-category-select'); var id=select.value; if(!id||id==='__custom__'){ showToast('Veuillez sélectionner un label'); return; }
-      labelText=getCategoryLabel(id); labelColor=getCategoryColor(id);
+    } else {
+      if(!selectedLabelId || selectedLabelId==='__custom__'){ 
+        showToast('Veuillez sélectionner un type'); 
+        return; 
+      }
+      labelText=getCategoryLabel(selectedLabelId); 
+      labelColor=getCategoryColor(selectedLabelId);
     }
-    if(documentLabels.some(function(l){ return l.text.toLowerCase()===labelText.toLowerCase(); })){ showToast('Ce label existe déjà'); return; }
+    
+    if(documentLabels.some(function(l){ return l.text.toLowerCase()===labelText.toLowerCase(); })){
+      showToast('Ce label existe déjà'); 
+      return; 
+    }
+    
     documentLabels.push({ text: labelText, color: labelColor });
-    document.getElementById('label-form-container').innerHTML=''; isCustomLabelMode=false; renderLabels(); saveMetaDebounced(); showToast('Label ajouté');
+    document.getElementById('label-form-container').innerHTML=''; 
+    isCustomLabelMode=false; 
+    selectedLabelId=null;
+    renderLabels(); 
+    saveMetaDebounced(); 
+    showToast('Label ajouté ✓');
   }
+
+  /* AUTO LABELS - Called automatically after OCR of pages 1, 2, or 3 */
   function addAutoLabels(){
     if(photos.length===0){ documentLabels=[]; renderLabels(); return; }
+    
     var allTexts=photos.map(function(p){return p.extractedText||'';}).join(' ');
-    if(!allTexts.trim()){ showToast('Aucun texte OCR disponible'); return; }
-    var categories={}; photos.forEach(function(p){ if(p.category && p.category!=='autre'){ categories[p.category]=(categories[p.category]||0)+1; } });
+    if(!allTexts.trim()){ 
+      return; // Don't show error, just skip silently for auto-calc
+    }
+    
+    var categories={}; 
+    photos.forEach(function(p){ 
+      if(p.category && p.category!=='autre'){ 
+        categories[p.category]=(categories[p.category]||0)+1; 
+      } 
+    });
+    
     var sorted=Object.keys(categories).sort(function(a,b){return categories[b]-categories[a];});
     documentLabels=[];
-    for(var i=0;i<Math.min(3,sorted.length);i++){ var id=sorted[i]; documentLabels.push({ text:getCategoryLabel(id), color:getCategoryColor(id) }); }
-    var detected=extractYear(allTexts); var y=detected||getCurrentYear();
+    
+    // Add top 3 categories
+    for(var i=0;i<Math.min(3,sorted.length);i++){ 
+      var id=sorted[i]; 
+      documentLabels.push({ text:getCategoryLabel(id), color:getCategoryColor(id) }); 
+    }
+    
+    // Add year
+    var detected=extractYear(allTexts); 
+    var y=detected||getCurrentYear();
     documentLabels.push({ text:String(y), color:'#007AFF' });
-    renderLabels(); saveMetaDebounced(); showToast('Labels recalculés');
+    
+    renderLabels(); 
+    saveMetaDebounced(); 
+    showToast('Labels calculés automatiquement ✓');
   }
 
   /* OCR */
@@ -272,6 +394,7 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
       tesseractWorker=w; return w.loadLanguage('fra+eng');
     }).then(function(){ return tesseractWorker.initialize('fra+eng'); });
   }
+  
   function calculateOtsuThreshold(data){
     var hist=new Array(256).fill(0), total=0;
     for(var i=0;i<data.length;i+=4){ hist[data[i]]++; total++; }
@@ -280,6 +403,7 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
     for(var t=0;t<256;t++){ wB+=hist[t]; if(wB===0) continue; var wF=total-wB; if(wF===0) break; sumB+=t*hist[t]; var mB=sumB/wB; var mF=(sum-sumB)/wF; var v=wB*wF*(mB-mF)*(mB-mF); if(v>maxVar){maxVar=v; thr=t;} }
     return thr;
   }
+  
   function resizeImageForOCR(dataUrl,maxWidth){
     return new Promise(function(resolve){
       var img=new Image(); img.onload=function(){
@@ -296,10 +420,13 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
       }; img.src=dataUrl;
     });
   }
+  
   function processOCRQueue(){
     if(isProcessingOCR || ocrQueue.length===0) return;
-    isProcessingOCR=true; var item=ocrQueue.shift();
+    isProcessingOCR=true; 
+    var item=ocrQueue.shift();
     updatePhotoOCRStatus(item.index,'processing');
+    
     resizeImageForOCR(item.dataUrl,1600).then(function(resized){
       return initTesseract().then(function(){ return tesseractWorker.recognize(resized); });
     }).then(function(result){
@@ -307,14 +434,37 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
       photos[item.index].ocrConfidence=result.data.confidence;
       photos[item.index].category=categorizeText(result.data.text);
       photos[item.index].ocrStatus='done';
-      updatePhotoOCRStatus(item.index,'done'); renderGrid();
-      isProcessingOCR=false; processOCRQueue();
+      updatePhotoOCRStatus(item.index,'done'); 
+      renderGrid();
+      
+      // *** NEW: Auto-calculate labels after OCR of pages 1, 2, or 3 ***
+      if ((item.index === 0 || item.index === 1 || item.index === 2) && !labelsAutoCalculated) {
+        // Check if we have enough OCR data
+        var ocrCount = 0;
+        for(var i=0; i<Math.min(3, photos.length); i++){
+          if(photos[i].ocrStatus === 'done') ocrCount++;
+        }
+        // Auto-calculate when first 1-3 pages are done
+        if(ocrCount >= 1){
+          labelsAutoCalculated = true;
+          setTimeout(function(){ addAutoLabels(); }, 500);
+        }
+      }
+      
+      isProcessingOCR=false; 
+      processOCRQueue();
     }).catch(function(){
-      photos[item.index].ocrStatus='error'; photos[item.index].extractedText=''; photos[item.index].category='autre';
-      updatePhotoOCRStatus(item.index,'error'); isProcessingOCR=false; processOCRQueue();
+      photos[item.index].ocrStatus='error'; 
+      photos[item.index].extractedText=''; 
+      photos[item.index].category='autre';
+      updatePhotoOCRStatus(item.index,'error'); 
+      isProcessingOCR=false; 
+      processOCRQueue();
     });
   }
+  
   function queueOCR(index,dataUrl){ ocrQueue.push({index:index,dataUrl:dataUrl}); processOCRQueue(); }
+  
   function updatePhotoOCRStatus(index,status){
     photos[index].ocrStatus=status;
     var tile=document.querySelector('.tile[data-index="'+index+'"]'); if(!tile) return;
@@ -334,19 +484,22 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
       else if(t==='application/vnd.openxmlformats-officedocument.wordprocessingml.document' || t==='application/msword') processDocxFile(f);
     }
   }
+  
   function processImageFile(file){
     var reader=new FileReader();
     reader.onload=function(e){
       var idx=photos.length;
       var fname = 'page_'+padNumber(idx+1,3)+'.jpg';
       photos.push({ dataUrl:e.target.result, name:file.name, type:file.type, filename: fname, extractedText:'', category:'autre', ocrStatus:'pending', ocrConfidence:0 });
-      renderGrid(); queueOCR(idx, e.target.result);
+      renderGrid(); 
+      queueOCR(idx, e.target.result);
       uploadSinglePhoto(photos[idx]);
-      if (!labelsAutoCalculated && photos.length >= 2) { addAutoLabels(); labelsAutoCalculated = true; }
     };
     reader.readAsDataURL(file);
   }
-  function processPDFFile(file){ attachFile(file, file.name);
+  
+  function processPDFFile(file){ 
+    attachFile(file, file.name);
     var reader=new FileReader();
     reader.onload=function(e){
       if (typeof pdfjsLib==='undefined'){ showToast('PDF.js non chargé'); return; }
@@ -363,9 +516,9 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
               var idx=photos.length;
               var fname = 'page_'+padNumber(idx+1,3)+'.jpg';
               photos.push({ dataUrl:dataUrl, name:file.name+' - Page '+p, type:'image/jpeg', filename: fname, extractedText:'', category:'autre', ocrStatus:'pending', ocrConfidence:0 });
-              renderGrid(); queueOCR(idx, dataUrl);
+              renderGrid(); 
+              queueOCR(idx, dataUrl);
               uploadSinglePhoto(photos[idx]);
-      if (!labelsAutoCalculated && photos.length >= 2) { addAutoLabels(); labelsAutoCalculated = true; }
             });
           });
         }
@@ -374,7 +527,9 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
     };
     reader.readAsArrayBuffer(file);
   }
-  function processDocxFile(file){ attachFile(file, file.name);
+  
+  function processDocxFile(file){ 
+    attachFile(file, file.name);
     var reader=new FileReader();
     reader.onload=function(e){
       if (typeof mammoth==='undefined'){ showToast('Mammoth non chargé'); return; }
@@ -390,10 +545,17 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
           ctx.fillText(cur,30,y); y+=lh; }
         var dataUrl=canvas.toDataURL('image/jpeg',0.9);
         var idx=photos.length;
-        var idx=photos.length; var fname='page_'+padNumber(idx+1,3)+'.jpg';
+        var fname='page_'+padNumber(idx+1,3)+'.jpg';
         photos.push({ dataUrl:dataUrl, name:file.name, type:'image/jpeg', filename: fname, extractedText:text, category:categorizeText(text), ocrStatus:'done', ocrConfidence:100 });
-        renderGrid(); uploadSinglePhoto(photos[idx]);
-      if (!labelsAutoCalculated && photos.length >= 2) { addAutoLabels(); labelsAutoCalculated = true; } showToast('Document Word chargé');
+        renderGrid(); 
+        uploadSinglePhoto(photos[idx]);
+        
+        // Auto-calculate for docx too
+        if (!labelsAutoCalculated && photos.length >= 1) { 
+          labelsAutoCalculated = true;
+          setTimeout(function(){ addAutoLabels(); }, 500);
+        }
+        showToast('Document Word chargé');
       }).catch(function(){ showToast('Erreur lecture DOCX'); });
     };
     reader.readAsArrayBuffer(file);
@@ -405,6 +567,7 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
     for (var i=0;i<photos.length;i++){ grid.appendChild(createPhotoTile(photos[i], i)); }
     grid.appendChild(createAddTile());
   }
+  
   function createPhotoTile(photo, index){
     var tile=document.createElement('div'); tile.className='tile'; tile.setAttribute('data-index', index); tile.setAttribute('draggable','false');
     var img=document.createElement('img'); img.src=photo.dataUrl; img.alt='Page '+(index+1);
@@ -418,12 +581,14 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
     setupDragHandlers(tile, index);
     return tile;
   }
+  
   function createAddTile(){
     var tile=document.createElement('div'); tile.className='tile tile-add';
     tile.innerHTML='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>';
     tile.setAttribute('aria-label','Prendre une photo'); tile.onclick=function(){ document.getElementById('file-input').click(); };
     return tile;
   }
+  
   function setupDragHandlers(tile, index){
     var startX=0,startY=0,isDragging=false;
     tile.addEventListener('pointerdown',function(e){ if(e.target.closest('.tile-delete')) return; startX=e.clientX; startY=e.clientY; isDragging=false; tile.setPointerCapture(e.pointerId); });
@@ -436,11 +601,13 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
     tile.addEventListener('pointerup',function(e){ if(isDragging){ endDrag(e); } tile.releasePointerCapture(e.pointerId); });
     tile.addEventListener('pointercancel',function(e){ if(isDragging){ endDrag(e); } tile.releasePointerCapture(e.pointerId); });
   }
+  
   function startDrag(tile, index, e){
     draggedIndex=index; tile.className='tile dragging';
     ghostElement=tile.cloneNode(true); ghostElement.className='tile drag-ghost'; ghostElement.style.width=tile.offsetWidth+'px'; ghostElement.style.height=tile.offsetHeight+'px';
     document.body.appendChild(ghostElement); moveDrag(e);
   }
+  
   function moveDrag(e){
     if(!ghostElement) return; ghostElement.style.left=e.clientX+'px'; ghostElement.style.top=e.clientY+'px';
     var tiles=document.querySelectorAll('.tile:not(.tile-add):not(.dragging)');
@@ -448,6 +615,7 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
       if (e.clientX>=rect.left && e.clientX<=rect.right && e.clientY>=rect.top && e.clientY<=rect.bottom){ tiles[i].classList.add('drag-over'); }
     }
   }
+  
   function endDrag(e){
     if(ghostElement){ document.body.removeChild(ghostElement); ghostElement=null; }
     var tiles=document.querySelectorAll('.tile'); var targetIndex=null;
@@ -455,10 +623,20 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
     if(targetIndex!==null && targetIndex!==draggedIndex){ movePhoto(draggedIndex, targetIndex); }
     draggedIndex=null; renderGrid();
   }
+  
   function movePhoto(from,to){ if(from===to) return; var it=photos.splice(from,1)[0]; photos.splice(to,0,it); renderGrid(); saveOrder(); saveMetaDebounced(); }
-  function deletePhoto(idx){ var removed = photos.splice(idx,1)[0]; if(removed){ deleteRemotePhoto(removed); } if(photos.length===0){ documentLabels=[]; } renderGrid(); renderLabels(); saveMetaDebounced(); showToast('Photo supprimée'); }
+  
+  function deletePhoto(idx){ 
+    var removed = photos.splice(idx,1)[0]; 
+    if(removed){ deleteRemotePhoto(removed); } 
+    if(photos.length===0){ documentLabels=[]; labelsAutoCalculated=false; } 
+    renderGrid(); 
+    renderLabels(); 
+    saveMetaDebounced(); 
+    showToast('Photo supprimée'); 
+  }
 
-  /* Upload with metadata (title, description, labels, OCR map) */
+  /* Upload with metadata */
   function dataURLtoBlob(dataUrl){
     var parts=dataUrl.split(',');
     var contentType=parts[0].match(/:(.*?);/)[1];
@@ -466,6 +644,7 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
     for (var i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i);
     return new Blob([arr], {type:contentType});
   }
+  
   function buildMetadata(){
     var ocrMap = photos.map(function(p, i){
       return {
@@ -487,6 +666,7 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
       created_at: new Date().toISOString()
     };
   }
+  
   function uploadAndSymlink(){
     if(!sessionUUID){ showToast('UUID de session manquant dans l URL'); return; }
     if(photos.length===0){ showToast('Aucune photo à uploader'); return; }
@@ -504,9 +684,9 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
   }
 
   /* Debug */
-  function toggleDebugMode(){ /* debug UI removed */ }
+  function toggleDebugMode(){}
 
-  /* PWA manifest (lightweight) */
+  /* PWA manifest */
   function setupPWA(){
     var manifest={ name:'Document Photo', short_name:'DocPhoto', start_url:'.', display:'standalone', theme_color:'#4A90E2', background_color:'#ffffff',
       icons:[{ src:'data:image/svg+xml;base64,'+btoa('<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\"><rect width=\"512\" height=\"512\" fill=\"#4A90E2\"/><path fill=\"white\" d=\"M256 128c-70.7 0-128 57.3-128 128s57.3 128 128 128 128-57.3 128-128-57.3-128-128-128zm0 208c-44.2 0-80-35.8-80-80s35.8-80 80-80 80 35.8 80 80-35.8 80-80 80z\"/><circle fill=\"white\" cx=\"384\" cy=\"128\" r=\"32\"/></svg>'), sizes:'512x512', type:'image/svg+xml'}] };
@@ -517,17 +697,20 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
 
   /* EVENTS */
   function bindEvents(){
-    document.getElementById('btn-load-header').addEventListener('click', function(){ document.getElementById('file-load').click(); });
+    document.getElementById('btn-load').addEventListener('click', function(){ document.getElementById('file-load').click(); });
     document.getElementById('file-load').addEventListener('change', function(e){ if(e.target.files && e.target.files.length>0){ addPhotos(e.target.files); showToast(e.target.files.length+' fichier(s) chargé(s)'); } });
     document.getElementById('file-input').addEventListener('change', function(e){ if(e.target.files && e.target.files.length>0){ addPhotos(e.target.files); } });
-    document.getElementById('btn-clear-header').addEventListener('click', function(){ if(photos.length===0){ showToast('Le document est déjà vide'); return; } if(confirm('Tout supprimer ?')){ resetRemote(); photos=[]; documentLabels=[]; renderGrid(); renderLabels(); showToast('Document vide'); } });
-    document.getElementById('btn-exit-header').addEventListener('click', function(){ if (photos.length>0){ if(confirm('Vous avez des photos non sauvegardees. Quitter ?')){ resetRemote(); window.close(); setTimeout(function(){ window.location.href='about:blank'; },100); } } else { window.close(); setTimeout(function(){ window.location.href='about:blank'; },100); } });
-    document.getElementById('recalc-labels-btn').addEventListener('click', addAutoLabels);
+    document.getElementById('btn-clear').addEventListener('click', function(){ if(photos.length===0){ showToast('Le document est déjà vide'); return; } if(confirm('Tout supprimer ?')){ resetRemote(); photos=[]; documentLabels=[]; labelsAutoCalculated=false; renderGrid(); renderLabels(); showToast('Document vide'); } });
+    document.getElementById('btn-exit').addEventListener('click', function(){ if (photos.length>0){ if(confirm('Vous avez des photos non sauvegardees. Quitter ?')){ resetRemote(); window.close(); setTimeout(function(){ window.location.href='about:blank'; },100); } } else { window.close(); setTimeout(function(){ window.location.href='about:blank'; },100); } });
+    document.getElementById('recalc-labels-btn').addEventListener('click', function(){ 
+      if(photos.length===0){ showToast('Aucune photo disponible'); return; }
+      addAutoLabels(); 
+    });
     document.getElementById('add-label-btn').addEventListener('click', showLabelForm);
-    // removed btn-upload (autosave mode)
-    // debug checkbox removed
-    // meta fields
-    var titleEl=document.getElementById('doc-title'); var descEl=document.getElementById('doc-desc'); var attachBtn=document.getElementById('attach-btn'); var attachInput=document.getElementById('file-attach');
+    
+    var titleEl=document.getElementById('doc-title'); 
+    var descEl=document.getElementById('doc-desc');
+    
     titleEl.addEventListener('input', function(){ meta.title=this.value; saveMetaDebounced(); try{ if(window.__lastUploadToast!==true){ showToast('Image enregistree'); window.__lastUploadToast=true; setTimeout(function(){ window.__lastUploadToast=false; }, 1500);} }catch(e){} });
     descEl.addEventListener('input', function(){ meta.description=this.value; saveMetaDebounced(); try{ if(window.__lastUploadToast!==true){ showToast('Image enregistree'); window.__lastUploadToast=true; setTimeout(function(){ window.__lastUploadToast=false; }, 1500);} }catch(e){} });
   }
@@ -540,18 +723,15 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
       .then(function(resp){
         if(!resp || !resp.ok || !resp.config) return;
         var cfg = resp.config;
-        // Meta
         meta.title = (cfg.title || '');
         meta.description = (cfg.description || '');
         document.getElementById('doc-title').value = meta.title;
         document.getElementById('doc-desc').value = meta.description;
-        // Labels
         documentLabels = Array.isArray(cfg.labels) ? cfg.labels : [];
         renderLabels();
-        // Attachments
         attachments = Array.isArray(cfg.attachments) ? cfg.attachments.map(function(a){ return {name:a.name}; }) : [];
         renderAttachments();
-        // Pages -> photos[]
+        
         var pages = Array.isArray(cfg.pages) ? cfg.pages : null;
         var filesMap = {};
         if (Array.isArray(resp.files)) {
@@ -560,7 +740,6 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
 
         var toUse = [];
         if (pages && pages.length){
-          // Use config order
           pages.forEach(function(p){
             var fname = p.filename || p.name || '';
             if (fname && filesMap[fname]) toUse.push(filesMap[fname]);
@@ -571,25 +750,30 @@ function resetRemote(){ if(!sessionUUID) return; fetch('api/reset/'+sessionUUID,
             if (name && filesMap[name]) toUse.push(filesMap[name]);
           });
         } else {
-          // fallback: list all files
           toUse = resp.files || [];
         }
 
         photos = toUse.filter(function(f){ return (f.mime||'').indexOf('image/')===0; }).map(function(f, idx){
           return {
-            dataUrl: f.url,   // use URL instead of dataURI
+            dataUrl: f.url,
             name: f.name,
             type: f.mime,
             filename: f.name,
-            extractedText: '',   // keep empty; we already did OCR earlier
+            extractedText: '',
             category: 'autre',
             ocrStatus: 'done',
             ocrConfidence: 0
           };
         });
+        
+        // If we loaded existing photos with labels, mark as calculated
+        if(photos.length > 0 && documentLabels.length > 0){
+          labelsAutoCalculated = true;
+        }
+        
         renderGrid();
       })
-      .catch(function(){ /* silently ignore for fresh sessions */ });
+      .catch(function(){});
   }
 
   /* INIT */

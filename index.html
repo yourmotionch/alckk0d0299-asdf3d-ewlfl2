@@ -9,37 +9,37 @@
   <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
-  <div class="header">
-    <div class="header-title"></div>
-    <div class="header-actions">
-      <button class="header-btn header-btn-vertical" id="btn-load-header" aria-label="Charger" title="Charger"><div class="btn-icon">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div><div class="btn-text">Charger</div></button>
-      <button class="header-btn header-btn-vertical" id="btn-clear-header" aria-label="Tout supprimer" title="Tout supprimer"><div class="btn-icon">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></div><div class="btn-text">Vider</div></button>
-      <button class="header-btn header-btn-vertical" id="btn-exit-header" aria-label="Quitter" title="Quitter"><div class="btn-icon">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></div><div class="btn-text">Quitter</div></button>
-    </div>
-  </div>
-
   <div class="container">
     <div class="grid" id="grid"></div>
   </div>
 
   <div class="actions">
-    <!-- COLLAPSIBLE META PANEL: Titre + Description -->
+    <!-- COLLAPSIBLE META PANEL: Titre + Description + Boutons -->
     <details id="meta-panel" open>
-      <summary class="document-summary-title">📝 Titre &amp; Description</summary>
+      <summary class="document-summary-title">📝 Mon document</summary>
       <div class="document-summary">
-        <div class="document-field">
-          <label for="doc-title" class="document-field-label">Titre</label>
-          <input id="doc-title" class="document-field-input" type="text" placeholder="Ex: Facture Infomaniak janvier 2025" />
+        <div class="document-title-row">
+          <div class="document-field">
+            <label for="doc-title" class="document-field-label">Titre</label>
+            <input id="doc-title" class="document-field-input" type="text" placeholder="Ex: Facture Infomaniak janvier 2025" />
+          </div>
+          <div class="document-actions-inline">
+            <button class="doc-action-btn" id="btn-load" title="Charger">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </button>
+            <button class="doc-action-btn" id="btn-clear" title="Vider">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+            <button class="doc-action-btn" id="btn-exit" title="Quitter">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
         </div>
         <div class="document-field">
           <label for="doc-desc" class="document-field-label">Description</label>
           <textarea id="doc-desc" class="document-field-textarea" placeholder="Ex: Facture mensuelle hébergement, payée par carte le 02.01.2025"></textarea>
-        
+        </div>
         <div class="attachments-list" id="attachments-list"></div>
-    
       </div>
     </details>
 
