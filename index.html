@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#4A90E2" />
+  <title>Document Photo</title>
+  <link rel="manifest" id="manifest-placeholder" />
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <div class="header">
+    <div class="header-title"></div>
+    <div class="header-actions">
+      <button class="header-btn header-btn-vertical" id="btn-load-header" aria-label="Charger" title="Charger"><div class="btn-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div><div class="btn-text">Charger</div></button>
+      <button class="header-btn header-btn-vertical" id="btn-clear-header" aria-label="Tout supprimer" title="Tout supprimer"><div class="btn-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></div><div class="btn-text">Vider</div></button>
+      <button class="header-btn header-btn-vertical" id="btn-exit-header" aria-label="Quitter" title="Quitter"><div class="btn-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></div><div class="btn-text">Quitter</div></button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="actions">
+    <!-- COLLAPSIBLE META PANEL: Titre + Description -->
+    <details id="meta-panel" open>
+      <summary class="document-summary-title">📝 Titre &amp; Description</summary>
+      <div class="document-summary">
+        <div class="document-field">
+          <label for="doc-title" class="document-field-label">Titre</label>
+          <input id="doc-title" class="document-field-input" type="text" placeholder="Ex: Facture Infomaniak janvier 2025" />
+        </div>
+        <div class="document-field">
+          <label for="doc-desc" class="document-field-label">Description</label>
+          <textarea id="doc-desc" class="document-field-textarea" placeholder="Ex: Facture mensuelle hébergement, payée par carte le 02.01.2025"></textarea>
+        
+        <div class="attachments-list" id="attachments-list"></div>
+    
+      </div>
+    </details>
+
+    <div class="labels-section">
+      <div class="labels-title">
+        🏷️ Labels du document
+        <div class="labels-title-buttons">
+          <button class="labels-recalc-btn" id="recalc-labels-btn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Recalculer
+          </button>
+          <button class="labels-add-btn" id="add-label-btn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Ajouter
+          </button>
+        </div>
+      </div>
+      <div class="labels-list" id="labels-list"></div>
+      <div id="label-form-container"></div>
+    </div>
+
+    <div class="actions-buttons">
+    </div>
+  </div>
+
+  <input type="file" id="file-input" accept="image/*" capture="environment" multiple style="display:none" aria-label="Sélectionner des photos" />
+  <input type="file" id="file-load" accept="image/*,.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple style="display:none" aria-label="Charger des fichiers" />
+
+  <div class="loader" id="loader"><div class="loader-spinner"></div></div>
+  <div class="toast" id="toast"></div>
+
+  <!-- libs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>

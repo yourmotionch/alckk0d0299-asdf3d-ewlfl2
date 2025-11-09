@@ -1,0 +1,24 @@
+# Minimal routing so /api/upload/{uuid} hits upload.php and /api/symlink/{uuid} hits symlink.php
+RewriteEngine On
+
+RewriteRule ^api/upload/([0-9a-fA-F\-]{36})$ api/upload.php?uuid=$1 [QSA,NC,L]
+RewriteRule ^api/symlink/([0-9a-fA-F\-]{36})$ api/symlink.php?uuid=$1 [QSA,NC,L]
+
+# Allow direct access to /public/{uuid}
+
+
+# Autosave endpoints
+RewriteRule ^api/meta/([0-9a-fA-F\-]{36})$ api/meta.php?uuid=$1 [QSA,NC,L]
+RewriteRule ^api/file/([0-9a-fA-F\-]{36})$ api/file.php?uuid=$1 [QSA,NC,L]
+RewriteRule ^api/delete/([0-9a-fA-F\-]{36})$ api/delete.php?uuid=$1 [QSA,NC,L]
+RewriteRule ^api/reorder/([0-9a-fA-F\-]{36})$ api/reorder.php?uuid=$1 [QSA,NC,L]
+
+RewriteRule ^api/reset/([0-9a-fA-F\-]{36})$ api/reset.php?uuid=$1 [QSA,NC,L]
+
+RewriteRule ^api/read/([0-9a-fA-F\-]{36})$ api/read.php?uuid=$1 [QSA,NC,L]
+
+RewriteRule ^data/ - [L]
+
+RewriteRule ^api/attach/([0-9a-fA-F\-]{36})$ api/attach.php?uuid=$1 [QSA,NC,L]
+
+RewriteRule ^api/detach/([0-9a-fA-F\-]{36})$ api/detach.php?uuid=$1 [QSA,NC,L]
